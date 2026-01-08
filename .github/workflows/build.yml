@@ -1,0 +1,54 @@
+name: Deploy Website
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # 수동으로 배포를 실행할 수 있게 해줍니다.
+
+permissions:
+  contents: read
+  pages: write      # GitHub Pages에 쓰기 권한
+  id-token: write   # 인증을 위한 권한
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install # --frozen-lockfile을 빼서 설치 유연성을 높임
+
+      - name: Build with Astro
+        run: pnpm astro build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist # Astro 빌드 결과물이 저장되는 폴더
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
